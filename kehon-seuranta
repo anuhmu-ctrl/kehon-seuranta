@@ -35,7 +35,7 @@ tab_lisaa, tab_trendit, tab_tavoitteet = st.tabs(["📥 Lisää mittaukset", "�
 
 # 1. LISÄÄ MITTAUKSET
 with tab_lisaa:
-    valittu_paiva = st.date_input("Valitse päivämäärä (PP.KK.VVVV)", date.today())
+    valittu_paiva = st.date_input("Valitse päivämäärä", date.today())
     
     st.subheader("🧬 Kehon koostumus")
     c1, c2, c3 = st.columns(3)
@@ -51,21 +51,38 @@ with tab_lisaa:
         st.metric("Laskettu BMI", f"{bmi:.1f}")
 
     st.markdown("---")
-    st.subheader("📏 Ympärysmitta (cm)")
+    st.subheader("💪 Ylävartalo (cm)")
+    
+    # Ohje ja kuva hartioille
+    st.info("Mittaa hartiaympärys hartioiden leveimmältä kohdalta, kädet rentona sivulla.")
+    
+
+[Image of measuring shoulder circumference]
+
     
     col_yla1, col_yla2 = st.columns(2)
     with col_yla1:
         hartia = st.number_input("Hartiaympärys")
-        rinta = st.number_input("Rinnanympärys")
         kasi_v = st.number_input("Käsivarsi (V)")
-        kasi_o = st.number_input("Käsivarsi (O)")
     with col_yla2:
+        rinta = st.number_input("Rinnanympärys")
+        kasi_o = st.number_input("Käsivarsi (O)")
+
+    st.markdown("---")
+    st.subheader("🎯 Keskivartalo (cm)")
+    col_vatsa1, col_vatsa2 = st.columns(2)
+    with col_vatsa1:
         yla_vatsa = st.number_input("Ylävatsa")
         vatsa = st.number_input("Vatsa (napa)")
+    with col_vatsa2:
         ala_vatsa = st.number_input("Alavatsa")
         lantio = st.number_input("Lantio (levein kohta)")
 
-    st.info("💡 Mittaa alaraajat jalan ollessa 90° kulmassa parhaan tarkkuuden saamiseksi.")
+    st.markdown("---")
+    st.subheader("🦵 Alaraajat (90° kulma)")
+    
+    # Ohje ja kuva jaloille
+    st.warning("TÄRKEÄÄ: Mittaa reidet ja polvet jalan ollessa 90 asteen kulmassa (esim. istuen tai jalka tuolilla).")
     
     
     col_ala1, col_ala2 = st.columns(2)
@@ -93,12 +110,12 @@ with tab_lisaa:
 
 # 2. ASETA TAVOITTEET
 with tab_tavoitteet:
-    st.subheader("Aseta tavoitearvosi seurattaville mitoille")
-    # Luodaan syöttökentät tavoitteille (oletusarvot ladataan jos olemassa)
+    st.subheader("Aseta tavoitearvosi")
     t_vals = {}
-    cols = st.columns(3)
-    for i, m in enumerate(["Paino", "Rasva_%", "Lihasmassa_%", "Vatsa_napa", "Hartia", "Lantio"]):
-        with cols[i % 3]:
+    t_cols = st.columns(3)
+    tavoite_listat = ["Paino", "Rasva_%", "Lihasmassa_%", "Vatsa_napa", "Hartia", "Lantio"]
+    for i, m in enumerate(tavoite_listat):
+        with t_cols[i % 3]:
             t_vals[m] = st.number_input(f"Tavoite: {m}", value=0.0)
 
     if st.button("TALLENNA TAVOITTEET"):
@@ -114,16 +131,14 @@ with tab_trendit:
         df_p = df_p.sort_values("Päivämäärä")
         
         mittari = st.selectbox("Valitse seurattava mitta", sarakkeet[1:])
-        
         plot_df = df_p.set_index("Päivämäärä")[[mittari]].copy()
         
-        # Lisätään tavoiteviiva jos se on asetettu
         if os.path.exists(TAVOITE_TIEDOSTO):
             df_t = pd.read_csv(TAVOITE_TIEDOSTO)
-            if mittari in df_t.columns and df_t[mittari].iloc[0] > 0:
+            if mittari in df_t.columns and not df_t.empty and df_t[mittari].iloc[0] > 0:
                 plot_df["Tavoite"] = df_t[mittari].iloc[0]
         
         st.line_chart(plot_df)
         st.dataframe(df_p.sort_values("Päivämäärä", ascending=False))
     else:
-        st.warning("Ei dataa näytettäväksi. Lisää mittauksia ensimmäisellä välilehdellä.")
+        st.warning("Ei dataa. Lisää mittauksia!")
