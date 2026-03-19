@@ -17,17 +17,32 @@ sarakkeet = [
     "Polvi_V_90", "Polvi_O_90", "Pohje_V", "Pohje_O"
 ]
 
-# Alustetaan tiedostot
-for f in [TIEDOSTO, TAVOITE_TIEDOSTO]:
-    if not os.path.exists(f):
-        pd.DataFrame(columns=sarakkeet).to_csv(f, index=False)
+# Alustetaan tiedostot jos niitä ei ole
+if not os.path.exists(TIEDOSTO):
+    pd.DataFrame(columns=sarakkeet).to_csv(TIEDOSTO, index=False)
+if not os.path.exists(TAVOITE_TIEDOSTO):
+    # Luodaan tavoitteille oma rakenne, joka vastaa mittareita
+    pd.DataFrame(columns=sarakkeet[1:]).to_csv(TAVOITE_TIEDOSTO, index=False)
+
+# --- APUFUNKTIO: Turvallinen arvojen haku ---
+def hae_viimeisimmat():
+    if os.path.exists(TIEDOSTO):
+        try:
+            df = pd.read_csv(TIEDOSTO)
+            if not df.empty:
+                return df.iloc[-1].to_dict()
+        except:
+            pass
+    return {}
+
+v = hae_viimeisimmat()
 
 st.title("⚖️ Kehon mittausseuranta")
 
 # --- SIVUPALKKI ---
 st.sidebar.header("👤 Käyttäjäprofiili")
-pituus = st.sidebar.number_input("Pituus (cm)", value=170, min_value=100)
-ika = st.sidebar.number_input("Ikä", value=20)
+pituus = st.sidebar.number_input("Pituus (cm)", value=175, min_value=100)
+ika = st.sidebar.number_input("Ikä", value=25)
 sukupuoli = st.sidebar.selectbox("Sukupuoli", ["Mies", "Nainen", "Muu"])
 
 # --- VÄLILEHDET ---
@@ -35,18 +50,18 @@ tab_lisaa, tab_trendit, tab_tavoitteet = st.tabs(["📥 Lisää mittaukset", "�
 
 # 1. LISÄÄ MITTAUKSET
 with tab_lisaa:
-    valittu_paiva = st.date_input("Valitse päivämäärä (PP.KK.VVVV)", date.today())
+    valittu_paiva = st.date_input("Valitse päivämäärä", date.today())
     
     st.subheader("🧬 Kehon koostumus")
     c1, c2, c3 = st.columns(3)
     with c1:
-        paino = st.number_input("Paino (kg)", format="%.1f", value=70.0)
-        rasva = st.number_input("Rasvaprosentti (%)", format="%.1f")
+        paino = st.number_input("Paino (kg)", format="%.1f", value=float(v.get("Paino", 75.0)))
+        rasva = st.number_input("Rasvaprosentti (%)", format="%.1f", value=float(v.get("Rasva_%", 20.0)))
     with c2:
-        lihas = st.number_input("Lihasmassaprosentti (%)", format="%.1f")
-        rm = st.number_input("RM (kcal)", step=10)
+        lihas = st.number_input("Lihasmassaprosentti (%)", format="%.1f", value=float(v.get("Lihasmassa_%", 35.0)))
+        rm = st.number_input("RM (kcal)", step=10, value=int(v.get("RM_kcal", 1700)))
     with c3:
-        viskeraali = st.number_input("Viskeraalinen rasva", step=1)
+        viskeraali = st.number_input("Viskeraalinen rasva", step=1, value=int(v.get("Viskeraalinen_rasva", 5)))
         bmi = paino / ((pituus/100)**2)
         st.metric("Laskettu BMI", f"{bmi:.1f}")
 
@@ -55,75 +70,17 @@ with tab_lisaa:
     
     col_yla1, col_yla2 = st.columns(2)
     with col_yla1:
-        hartia = st.number_input("Hartiaympärys")
-        rinta = st.number_input("Rinnanympärys")
-        kasi_v = st.number_input("Käsivarsi (V)")
-        kasi_o = st.number_input("Käsivarsi (O)")
+        hartia = st.number_input("Hartiaympärys", value=float(v.get("Hartia", 0.0)))
+        kasi_v = st.number_input("Käsivarsi (V)", value=float(v.get("Käsivarsi_V", 0.0)))
+        vatsa = st.number_input("Vatsa (napa)", value=float(v.get("Vatsa_napa", 0.0)))
     with col_yla2:
-        yla_vatsa = st.number_input("Ylävatsa")
-        vatsa = st.number_input("Vatsa (napa)")
-        ala_vatsa = st.number_input("Alavatsa")
-        lantio = st.number_input("Lantio (levein kohta)")
+        rinta = st.number_input("Rinnanympärys", value=float(v.get("Rinta", 0.0)))
+        kasi_o = st.number_input("Käsivarsi (O)", value=float(v.get("Käsivarsi_O", 0.0)))
+        lantio = st.number_input("Lantio", value=float(v.get("Lantio", 0.0)))
 
-    st.info("💡 Mittaa alaraajat jalan ollessa 90° kulmassa parhaan tarkkuuden saamiseksi.")
-    
+    st.info("💡 Muista: Mittaa alaraajat (reidet/polvet) 90° kulmassa.")
     
     col_ala1, col_ala2 = st.columns(2)
     with col_ala1:
-        ry_v = st.number_input("Reisi yläosa 90° (V)")
-        rp_v = st.number_input("Reisi puoliväli 90° (V)")
-        pol_v = st.number_input("Polven päältä 90° (V)")
-        poh_v = st.number_input("Pohje, levein kohta (V)")
-    with col_ala2:
-        ry_o = st.number_input("Reisi yläosa 90° (O)")
-        rp_o = st.number_input("Reisi puoliväli 90° (O)")
-        pol_o = st.number_input("Polven päältä 90° (O)")
-        poh_o = st.number_input("Pohje, levein kohta (O)")
-
-    if st.button("TALLENNA KAIKKI MITTAUKSET"):
-        uudet = [
-            valittu_paiva, paino, round(bmi, 2), rasva, lihas, rm, viskeraali,
-            hartia, rinta, kasi_v, kasi_o, yla_vatsa, vatsa, ala_vatsa, lantio,
-            ry_v, ry_o, rp_v, rp_o, pol_v, pol_o, poh_v, poh_o
-        ]
-        df_old = pd.read_csv(TIEDOSTO)
-        pd.concat([df_old, pd.DataFrame([uudet], columns=sarakkeet)]).to_csv(TIEDOSTO, index=False)
-        st.success("Mittaukset tallennettu onnistuneesti!")
-        st.balloons()
-
-# 2. ASETA TAVOITTEET
-with tab_tavoitteet:
-    st.subheader("Aseta tavoitearvosi seurattaville mitoille")
-    # Luodaan syöttökentät tavoitteille (oletusarvot ladataan jos olemassa)
-    t_vals = {}
-    cols = st.columns(3)
-    for i, m in enumerate(["Paino", "Rasva_%", "Lihasmassa_%", "Vatsa_napa", "Hartia", "Lantio"]):
-        with cols[i % 3]:
-            t_vals[m] = st.number_input(f"Tavoite: {m}", value=0.0)
-
-    if st.button("TALLENNA TAVOITTEET"):
-        t_df = pd.DataFrame([t_vals])
-        t_df.to_csv(TAVOITE_TIEDOSTO, index=False)
-        st.success("Tavoitteet päivitetty!")
-
-# 3. TRENDIKÄYRÄT
-with tab_trendit:
-    df_p = pd.read_csv(TIEDOSTO)
-    if not df_p.empty:
-        df_p["Päivämäärä"] = pd.to_datetime(df_p["Päivämäärä"])
-        df_p = df_p.sort_values("Päivämäärä")
-        
-        mittari = st.selectbox("Valitse seurattava mitta", sarakkeet[1:])
-        
-        plot_df = df_p.set_index("Päivämäärä")[[mittari]].copy()
-        
-        # Lisätään tavoiteviiva jos se on asetettu
-        if os.path.exists(TAVOITE_TIEDOSTO):
-            df_t = pd.read_csv(TAVOITE_TIEDOSTO)
-            if mittari in df_t.columns and df_t[mittari].iloc[0] > 0:
-                plot_df["Tavoite"] = df_t[mittari].iloc[0]
-        
-        st.line_chart(plot_df)
-        st.dataframe(df_p.sort_values("Päivämäärä", ascending=False))
-    else:
-        st.warning("Ei dataa näytettäväksi. Lisää mittauksia ensimmäisellä välilehdellä.")
+        ry_v = st.number_input("Reisi ylä 90° (V)", value=float(v.get("Reisi_ylä_V_90", 0.0)))
+        rp_v = st.number_input("Re
