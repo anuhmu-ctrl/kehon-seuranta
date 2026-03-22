@@ -83,4 +83,4 @@ with tab_lisaa:
     col_ala1, col_ala2 = st.columns(2)
     with col_ala1:
         ry_v = st.number_input("Reisi ylä 90° (V)", value=float(v.get("Reisi_ylä_V_90", 0.0)))
-        rp_v = st.number_input("Re
+    rp_v = st.number_input("Reisi puoliväli 90° (V)", value=float(v.get("Reisi_puoli_V_90", 0.0)))
